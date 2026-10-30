@@ -49,6 +49,12 @@ extern unsigned int ed25519_pub_key_len;
  *       provided and added to the build manually.
  */
 #if defined(HAVE_KEYS)
+#if defined(MCUBOOT_HAVE_EXTRA_KEYS)
+/* generated from CONFIG_BOOT_SIGNATURE_KEY_FILE_EXTRA, defines MCUBOOT_EXTRA_KEYS */
+#include "autogen-pubkey-extra.h"
+#else
+#define MCUBOOT_EXTRA_KEYS
+#endif
 const struct bootutil_key bootutil_keys[] = {
     {
 #if defined(MCUBOOT_SIGN_RSA)
@@ -62,8 +68,9 @@ const struct bootutil_key bootutil_keys[] = {
         .len = &ed25519_pub_key_len,
 #endif
     },
+    MCUBOOT_EXTRA_KEYS
 };
-const int bootutil_key_cnt = 1;
+const int bootutil_key_cnt = sizeof(bootutil_keys) / sizeof(bootutil_keys[0]);
 #endif /* HAVE_KEYS */
 #else
 unsigned int pub_key_len;

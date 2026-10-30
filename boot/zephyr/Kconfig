@@ -487,6 +487,19 @@ config BOOT_SIGNATURE_KEY_FILE
 	  e.g. \${CMAKE_CURRENT_LIST_DIR} will allow referencing a file in that directory, these
 	  will be automatically configured by the build system.
 
+config BOOT_SIGNATURE_KEY_FILE_EXTRA
+	string "Additional PEM key files"
+	depends on !BOOT_SIGNATURE_TYPE_NONE
+	depends on !BOOT_BUILTIN_KEY && !BOOT_HW_KEY && !BOOT_BYPASS_KEY_MATCH
+	default ""
+	help
+	  Space separated list of further key files whose public keys are built
+	  into MCUboot next to the one of BOOT_SIGNATURE_KEY_FILE, for example a
+	  backup key kept offline that takes over when the primary signing key is
+	  lost or retired. An image is accepted if it is signed by any of them;
+	  the key is picked by the key hash TLV of the image. The files may hold
+	  only the public key. Paths are resolved as for BOOT_SIGNATURE_KEY_FILE.
+
 config MCUBOOT_CLEANUP_ARM_CORE
 	bool "Perform core cleanup before chain-load the application"
 	depends on CPU_CORTEX_M || ARMV7_R

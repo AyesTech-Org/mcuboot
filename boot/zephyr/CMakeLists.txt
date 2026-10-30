@@ -358,6 +358,62 @@ if(NOT CONFIG_BOOT_SIGNATURE_TYPE_NONE AND NOT CONFIG_BOOT_BUILTIN_KEY AND NOT
   target_sources(app PRIVATE
     ${generated_pubkey}
   )
+
+  # Further accepted keys (CONFIG_BOOT_SIGNATURE_KEY_FILE_EXTRA): key N becomes
+  # <type>_pub_key_N in autogen-pubkey-N.c and an entry of MCUBOOT_EXTRA_KEYS.
+  set(extra_key_files "${CONFIG_BOOT_SIGNATURE_KEY_FILE_EXTRA}")
+  string(CONFIGURE "${extra_key_files}" extra_key_files)
+  separate_arguments(extra_key_files)
+  if(extra_key_files)
+    if(CONFIG_BOOT_SIGNATURE_TYPE_RSA)
+      set(key_prefix rsa)
+    elseif(CONFIG_BOOT_SIGNATURE_TYPE_ED25519)
+      set(key_prefix ed25519)
+    else()
+      set(key_prefix ecdsa)
+    endif()
+    set(extra_keys_decl "")
+    set(extra_keys_entries "")
+    set(key_idx 0)
+    foreach(extra_key ${extra_key_files})
+      math(EXPR key_idx "${key_idx} + 1")
+      if(IS_ABSOLUTE ${extra_key})
+        set(extra_key_file ${extra_key})
+      elseif(EXISTS ${APPLICATION_CONFIG_DIR}/${extra_key})
+        set(extra_key_file ${APPLICATION_CONFIG_DIR}/${extra_key})
+      else()
+        set(extra_key_file ${MCUBOOT_DIR}/${extra_key})
+      endif()
+      if(${extra_key_file} IN_LIST mcuboot_default_signature_files)
+        message(WARNING "WARNING: Using default MCUboot signing key file as an extra key, this file is for debug use only and is not secure!")
+      endif()
+      message("MCUBoot bootloader extra key file ${key_idx}: ${extra_key_file}")
+      set(extra_pubkey ${ZEPHYR_BINARY_DIR}/autogen-pubkey-${key_idx}.c)
+      add_custom_command(
+        OUTPUT ${extra_pubkey}
+        COMMAND
+        ${CMAKE_COMMAND}
+        -DPYTHON=${PYTHON_EXECUTABLE}
+        -DIMGTOOL=${MCUBOOT_DIR}/scripts/imgtool.py
+        -DKEY=${extra_key_file}
+        -DSUFFIX=_${key_idx}
+        -DOUT=${extra_pubkey}
+        -P ${CMAKE_CURRENT_LIST_DIR}/getpub_extra.cmake
+        DEPENDS ${extra_key_file} ${CMAKE_CURRENT_LIST_DIR}/getpub_extra.cmake
+      )
+      target_sources(app PRIVATE ${extra_pubkey})
+      string(APPEND extra_keys_decl
+        "extern const unsigned char ${key_prefix}_pub_key_${key_idx}[];\n"
+        "extern unsigned int ${key_prefix}_pub_key_${key_idx}_len;\n")
+      string(APPEND extra_keys_entries
+        " \\\n    { .key = ${key_prefix}_pub_key_${key_idx}, .len = &${key_prefix}_pub_key_${key_idx}_len },")
+    endforeach()
+    file(WRITE ${ZEPHYR_BINARY_DIR}/autogen-pubkey-extra.h
+      "/* generated from CONFIG_BOOT_SIGNATURE_KEY_FILE_EXTRA */\n"
+      "${extra_keys_decl}#define MCUBOOT_EXTRA_KEYS${extra_keys_entries}\n")
+    target_include_directories(app PRIVATE ${ZEPHYR_BINARY_DIR})
+    target_compile_definitions(app PRIVATE MCUBOOT_HAVE_EXTRA_KEYS)
+  endif()
 endif()
 
 if(CONFIG_BOOT_ENCRYPTION_KEY_FILE AND NOT CONFIG_BOOT_ENCRYPTION_KEY_FILE STREQUAL "")
