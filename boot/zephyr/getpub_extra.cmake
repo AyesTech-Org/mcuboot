@@ -14,5 +14,5 @@ execute_process(
 if(NOT rc EQUAL 0)
   message(FATAL_ERROR "imgtool getpub failed for ${KEY} (${rc})")
 endif()
-string(REGEX REPLACE "([a-z0-9]+)_pub_key" "\1_pub_key${SUFFIX}" pubkey "${pubkey}")
+string(REPLACE "_pub_key" "_pub_key${SUFFIX}" pubkey "${pubkey}")
 file(WRITE ${OUT} "${pubkey}")
